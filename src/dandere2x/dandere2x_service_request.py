@@ -27,17 +27,21 @@ class UpscalingEngineType(Enum):
     CONVERTER_CPP = "converter_cpp"
     CAFFE = "caffe"
     REALSR = "realsr"
+    REALESRGAN = "realesrgan"
 
     @staticmethod
     def from_str(input: str):
-        if input == "vulkan":
+        if input == "waifu2x":
             return UpscalingEngineType.VULKAN
         if input == "converter_cpp":
             return UpscalingEngineType.CONVERTER_CPP
         if input == "caffe":
             return UpscalingEngineType.CAFFE
-        if input == "realsr_ncnn_vulkan":
+        if input == "realsr":
             return UpscalingEngineType.REALSR
+        if input == "realesrgan":
+            return UpscalingEngineType.REALESRGAN
+
 
         raise Exception("UpscalingEngineType not found %s" % input)
 
@@ -111,7 +115,7 @@ class Dandere2xServiceRequest:
                 output_options=output_config,
                 processing_type=ProcessingType.from_str(args.processing_type),
                 name="Master Service Request",
-                upscale_engine=UpscalingEngineType.from_str(args.waifu2x_type))
+                upscale_engine=UpscalingEngineType.from_str(args.upscaler_type))
 
         return request
 
@@ -138,8 +142,8 @@ class Dandere2xServiceRequest:
         parser.add_argument('-q', '--quality', action="store", dest="image_quality", type=int, default=97,
                             help='Image Quality (Default 85)')
 
-        parser.add_argument('-w', '--waifu2x_type', action="store", dest="waifu2x_type", type=str, default="vulkan",
-                            help='Waifu2x Type. Options: "vulkan" "converter_cpp" "caffe". Default: "vulkan"')
+        parser.add_argument('-w', '--upscaler_type', action="store", dest="upscaler_type", type=str, default="realsr",
+                            help='Upscaler Type. Options: "waifu2x" "converter_cpp" "caffe" "realsr" "realesrgan". Default: "vulkan"')
 
         parser.add_argument('-s', '--scale_factor', action="store", dest="scale_factor", type=int, default=2,
                             help='Scale Factor (Default 2)')

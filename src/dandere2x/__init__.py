@@ -51,7 +51,7 @@ class Dandere2x(Thread):
             from dandere2x.dandere2x_service.service_types.singleprocess_service import SingleProcessService
             return SingleProcessService
 
-        raise Exception("Could not find selected waifu2x type. ")
+        raise Exception("Could not find selected upscaler type. ")
 
     def run(self) -> None:
         self._root_service_thread.run()

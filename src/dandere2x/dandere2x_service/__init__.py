@@ -12,11 +12,12 @@ from dandere2x.dandere2x_service.core.merge import Merge
 from dandere2x.dandere2x_service.core.min_disk_usage import MinDiskUsage
 from dandere2x.dandere2x_service.core.residual import Residual
 from dandere2x.dandere2x_service.core.status_thread import Status
-from dandere2x.dandere2x_service.core.waifu2x.abstract_upscaler import AbstractUpscaler
-from dandere2x.dandere2x_service.core.waifu2x.waifu2x_caffe import Waifu2xCaffe
-from dandere2x.dandere2x_service.core.waifu2x.waifu2x_converter_cpp import Waifu2xConverterCpp
-from dandere2x.dandere2x_service.core.waifu2x.waifu2x_ncnn_vulkan import Waifu2xNCNNVulkan
-from dandere2x.dandere2x_service.core.waifu2x.realsr_ncnn_vulkan import RealSRNCNNVulkan
+from dandere2x.dandere2x_service.core.upscaler.abstract_upscaler import AbstractUpscaler
+from dandere2x.dandere2x_service.core.upscaler.waifu2x_caffe import Waifu2xCaffe
+from dandere2x.dandere2x_service.core.upscaler.waifu2x_converter_cpp import Waifu2xConverterCpp
+from dandere2x.dandere2x_service.core.upscaler.waifu2x_ncnn_vulkan import Waifu2xNCNNVulkan
+from dandere2x.dandere2x_service.core.upscaler.realsr_ncnn_vulkan import RealSRNCNNVulkan
+from dandere2x.dandere2x_service.core.upscaler.realesrgan_ncnn_vulkan import RealESRGANNCNNVulkan
 from dandere2x.dandere2x_service.dandere2x_service_context import Dandere2xServiceContext
 from dandere2x.dandere2x_service.dandere2x_service_controller import Dandere2xController
 from dandere2x.dandere2xlib.utils.dandere2x_utils import file_exists, wait_on_file
@@ -40,8 +41,11 @@ def _get_upscale_engine(selected_engine: UpscalingEngineType) -> Type[AbstractUp
     if selected_engine == UpscalingEngineType.REALSR:
         return RealSRNCNNVulkan
 
+    if selected_engine == UpscalingEngineType.REALESRGAN:
+        return RealESRGANNCNNVulkan
+
     else:
-        log.error("no valid waifu2x selected: %s", selected_engine)
+        log.error("no valid upscaler selected: %s", selected_engine)
         raise Exception
 
 
@@ -77,8 +81,8 @@ class Dandere2xServiceThread(threading.Thread):
         self.status_thread = Status(self.context, self.controller)
         self.dandere2x_cpp_thread = Dandere2xCppWrapper(self.context, self.controller)
 
-        selected_waifu2x = _get_upscale_engine(service_request.upscale_engine)
-        self.waifu2x = selected_waifu2x(context=self.context, controller=self.controller)
+        selected_upscaler = _get_upscale_engine(service_request.upscale_engine)
+        self.upscaler = selected_upscaler(context=self.context, controller=self.controller)
 
         self.residual_thread = Residual(self.context, self.controller)
         self.merge_thread = Merge(context=self.context, controller=self.controller)
@@ -106,7 +110,7 @@ class Dandere2xServiceThread(threading.Thread):
         self.dandere2x_cpp_thread.start()
         self.merge_thread.start()
         self.residual_thread.start()
-        self.waifu2x.start()
+        self.upscaler.start()
         self.status_thread.start()
         self.min_disk_demon.start()
 
@@ -118,7 +122,7 @@ class Dandere2xServiceThread(threading.Thread):
         self.dandere2x_cpp_thread.join()
         self.merge_thread.join()
         self.residual_thread.join()
-        self.waifu2x.join()
+        self.upscaler.join()
         self.status_thread.join()
 
     # todo, remove this dependency.
@@ -132,7 +136,7 @@ class Dandere2xServiceThread(threading.Thread):
         # measure the time to upscale a single frame for printing purposes
         one_frame_time = time.time()
         wait_on_file(self.context.input_frames_dir + "frame" + str(1) + ".png")
-        self.waifu2x.upscale_file(
+        self.upscaler.upscale_file(
             input_image=self.context.input_frames_dir + "frame" + str(1) + ".png",
             output_image=self.context.merged_dir + "merged_" + str(1) + ".png")
 
@@ -142,7 +146,7 @@ class Dandere2xServiceThread(threading.Thread):
             Ensure the first file was able to get upscaled. We literally cannot continue if it doesn't. 
             """
             self.log.error("Could not upscale first file. Dandere2x CANNOT continue.")
-            self.log.error("Have you tried making sure your waifu2x works?")
+            self.log.error("Have you tried making sure your upscaler works?")
 
             raise Exception("Could not upscale first file.. check logs file to see what's wrong")
 
